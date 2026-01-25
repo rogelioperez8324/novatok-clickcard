@@ -1,3 +1,15 @@
+// Deterministic QR code pattern to avoid flickering on re-renders
+const QR_PATTERN = [
+  1,0,1,1,0,1,0,1,
+  0,1,0,0,1,0,1,0,
+  1,0,1,0,1,1,0,1,
+  1,1,0,1,0,0,1,0,
+  0,1,1,0,1,1,0,1,
+  1,0,0,1,0,1,1,0,
+  0,1,1,0,1,0,0,1,
+  1,0,1,1,0,1,1,0,
+]
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -16,10 +28,18 @@ export default function Home() {
               Share your information instantly. No app required. Works anywhere.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <button className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+              <button 
+                type="button" 
+                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                aria-label="Get started with Novatok ClickCard"
+              >
                 Get Started
               </button>
-              <button className="px-8 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:border-gray-400 transition-colors">
+              <button 
+                type="button" 
+                className="px-8 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:border-gray-400 transition-colors"
+                aria-label="Learn more about Novatok ClickCard"
+              >
                 Learn More
               </button>
             </div>
@@ -44,11 +64,11 @@ export default function Home() {
                     <div className="aspect-square bg-gray-200 rounded-xl flex items-center justify-center">
                       {/* QR Code Pattern Simulation */}
                       <div className="grid grid-cols-8 gap-1 p-4">
-                        {[...Array(64)].map((_, i) => (
+                        {QR_PATTERN.map((val, i) => (
                           <div
                             key={i}
                             className={`w-2 h-2 ${
-                              Math.random() > 0.5 ? 'bg-gray-800' : 'bg-white'
+                              val ? 'bg-gray-800' : 'bg-white'
                             }`}
                           ></div>
                         ))}
