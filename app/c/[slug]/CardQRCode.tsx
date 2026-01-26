@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { QRCode } from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function CardQRCode() {
   const [url, setUrl] = useState("");
@@ -15,7 +15,7 @@ export default function CardQRCode() {
 
   return (
     <div className="flex justify-center">
-      <QRCode value={url} size={128} />
+      <QRCodeSVG value={url} size={128} />
     </div>
   );
 }
