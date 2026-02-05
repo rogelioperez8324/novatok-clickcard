@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
-export default function DashboardPage() {
+export default function AuthPage() {
   const router = useRouter();
 
   const supabase = useMemo(() => {
@@ -15,117 +15,185 @@ export default function DashboardPage() {
     );
   }, []);
 
-  const [loading, setLoading] = useState(true);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // ✅ Auth guard: kick user to /auth if not logged in
+  // ✅ Track session so we can show/hide Logout button correctly
+  const [session, setSession] = useState<any>(null);
+
+  // ✅ If already logged in, go straight to dashboard + keep session updated
   useEffect(() => {
     let mounted = true;
 
     (async () => {
-      const { data, error } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
       if (!mounted) return;
 
-      if (error) {
-        setErr(error.message);
-        setLoading(false);
-        return;
-      }
-
-      if (!data.session) {
-        router.push("/auth");
-        return;
-      }
-
-      setUserEmail(data.session.user.email ?? null);
-      setLoading(false);
+      setSession(data.session);
+      if (data.session) router.push("/dashboard");
     })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
 
     return () => {
       mounted = false;
+      sub.subscription.unsubscribe();
     };
   }, [router, supabase]);
 
-  async function handleLogout() {
-    setErr(null);
+  async function handleSignup() {
     setLoading(true);
+    setErr(null);
+    setMsg(null);
 
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth`,
+      },
+    });
+
     if (error) {
       setErr(error.message);
       setLoading(false);
       return;
     }
 
-    router.push("/auth");
+    setMsg("Signup success. Check your email if confirmation is enabled.");
+    setLoading(false);
   }
 
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6">
-        <p className="text-gray-700">Loading dashboard…</p>
-      </main>
-    );
+  async function handleLogin() {
+    setLoading(true);
+    setErr(null);
+    setMsg(null);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setErr(error.message);
+      setLoading(false);
+      return;
+    }
+
+    if (data.session) {
+      setMsg("Logged in. Redirecting...");
+      setLoading(false);
+      router.push("/dashboard");
+      return;
+    }
+
+    setMsg("Logged in.");
+    setLoading(false);
+  }
+
+  async function handleLogout() {
+    setLoading(true);
+    setErr(null);
+    setMsg(null);
+
+    const { error } = await supabase.auth.signOut();
+    if (error) setErr(error.message);
+    else setMsg("Logged out.");
+
+    setLoading(false);
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto w-full max-w-4xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 text-sm">
-              Signed in as {userEmail ?? "Unknown"}
-            </p>
-          </div>
+    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <Link href="/" className="text-sm text-gray-600 hover:underline">
+          ← Back to home
+        </Link>
 
-          <div className="flex gap-3">
-            <Link
-              href="/"
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 font-semibold hover:bg-gray-50"
-            >
-              Home
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="rounded-lg bg-gray-900 px-4 py-2 text-white font-semibold hover:bg-black"
-            >
-              Log out
-            </button>
-          </div>
-        </div>
-
-        {err && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {err}
-          </div>
-        )}
-
-        {/* ✅ Put your dashboard content here */}
-        <div className="mt-6 rounded-2xl bg-white shadow p-6 border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Your ClickCard
-          </h2>
+        <div className="mt-4 rounded-2xl bg-white shadow p-8 border border-gray-200">
+          <h1 className="text-2xl font-bold text-gray-900">Login / Sign up</h1>
           <p className="mt-1 text-gray-600">
-            Next: show card settings, public link, and Pro upgrade.
+            Use your email + password to access your ClickCard.
           </p>
 
-          <div className="mt-4 flex gap-3">
-            <Link
-              href="/c/demo"
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 font-semibold hover:bg-gray-50"
-            >
-              View Demo Card
-            </Link>
+          <div className="mt-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="you@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </div>
 
-            <Link
-              href="/auth"
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 font-semibold hover:bg-gray-50"
-            >
-              Auth Page
-            </Link>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                type="password"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
+
+            {err && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {err}
+              </div>
+            )}
+
+            {msg && (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                {msg}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleSignup}
+                disabled={loading || !email || !password}
+                className="flex-1 rounded-lg bg-blue-600 text-white font-semibold py-2 hover:bg-blue-700 disabled:opacity-60"
+              >
+                {loading ? "Working..." : "Sign up"}
+              </button>
+
+              <button
+                onClick={handleLogin}
+                disabled={loading || !email || !password}
+                className="flex-1 rounded-lg border border-gray-300 bg-white text-gray-900 font-semibold py-2 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Log in
+              </button>
+
+              {/* ✅ Only show logout when user is logged in */}
+              {session && (
+                <button
+                  onClick={handleLogout}
+                  disabled={loading}
+                  className="flex-1 rounded-lg border border-gray-300 bg-white text-gray-900 font-semibold py-2 hover:bg-gray-50 disabled:opacity-60"
+                >
+                  Log out
+                </button>
+              )}
+            </div>
+
+            <p className="pt-3 text-xs text-gray-500">
+              Tip: If “Confirm email” is ON in Supabase, check your inbox after signing up.
+            </p>
           </div>
         </div>
       </div>
