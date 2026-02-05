@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2026-01-28.clover",
 });
 
 const supabaseAdmin = createClient(
@@ -40,7 +40,8 @@ export async function POST(req: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
 
       const userId = session.client_reference_id;
-      const customerId = typeof session.customer === "string" ? session.customer : null;
+      const customerId =
+        typeof session.customer === "string" ? session.customer : null;
       const subscriptionId =
         typeof session.subscription === "string" ? session.subscription : null;
 
