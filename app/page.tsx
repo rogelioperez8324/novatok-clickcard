@@ -1,107 +1,166 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
-// Deterministic QR code pattern to avoid flickering on re-renders
-const QR_PATTERN = [
-  1, 0, 1, 1, 0, 1, 0, 1,
-  0, 1, 0, 0, 1, 0, 1, 0,
-  1, 0, 1, 0, 1, 1, 0, 1,
-  1, 1, 0, 1, 0, 0, 1, 0,
-  0, 1, 1, 0, 1, 1, 0, 1,
-  1, 0, 0, 1, 0, 1, 1, 0,
-  0, 1, 1, 0, 1, 0, 0, 1,
-  1, 0, 1, 1, 0, 1, 1, 0,
-];
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-export default function Home() {
+export default function AuthPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function signUp() {
+    setLoading(true);
+    setMsg(null);
+    setErr(null);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth`,
+        },
+      });
+      if (error) throw error;
+      setMsg("Signup success. Check your email if confirmation is enabled.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Signup failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function logIn() {
+    setLoading(true);
+    setMsg(null);
+    setErr(null);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      setMsg("Logged in.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function logOut() {
+    setLoading(true);
+    setMsg(null);
+    setErr(null);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setMsg("Logged out.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Logout failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const disabled = loading || !email || !password;
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 md:py-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-          {/* Left Column - Copy */}
-          <div className="space-y-6">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-              Your Digital Card, Simplified
-            </h1>
-
-            <p className="text-lg md:text-xl text-gray-600">
-              Dynamic QR codes and mobile-first digital card pages for payments,
-              contacts, and links.
-            </p>
-
-            <p className="text-base md:text-lg text-gray-500">
-              Share your information instantly. No app required. Works anywhere.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              {/* ✅ Changed: Get Started -> /auth */}
-              <Link
-                href="/auth"
-                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-center"
-                aria-label="Get started with Novatok ClickCard"
-              >
-                Get Started
-              </Link>
-
-              {/* ✅ Changed: Learn More -> /c/demo */}
-              <Link
-                href="/c/demo"
-                className="px-8 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:border-gray-400 transition-colors text-center"
-                aria-label="Learn more about Novatok ClickCard"
-              >
-                Learn More
-              </Link>
-            </div>
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-md mx-auto">
+          <div className="mb-6">
+            <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
+              ← Back to home
+            </Link>
           </div>
 
-          {/* Right Column - Visual */}
-          <div className="flex justify-center md:justify-end">
-            <div className="w-full max-w-sm">
-              {/* Card Mock - Mobile Width */}
-              <div className="relative">
-                {/* Phone/Card Frame */}
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl shadow-2xl p-8 aspect-[9/16] flex flex-col justify-between">
-                  {/* Card Header */}
-                  <div className="text-center space-y-3">
-                    <div className="w-20 h-20 bg-white/20 rounded-full mx-auto backdrop-blur-sm"></div>
-                    <h3 className="text-white font-bold text-xl">John Doe</h3>
-                    <p className="text-white/80 text-sm">Product Designer</p>
-                  </div>
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
+            <h1 className="text-2xl font-bold text-gray-900">Login / Sign up</h1>
+            <p className="text-gray-600 mt-1">
+              Use your email + password to access your ClickCard.
+            </p>
 
-                  {/* Card Content - QR Code Placeholder */}
-                  <div className="bg-white rounded-2xl p-6 space-y-4">
-                    <div className="aspect-square bg-gray-200 rounded-xl flex items-center justify-center">
-                      {/* QR Code Pattern Simulation */}
-                      <div className="grid grid-cols-8 gap-1 p-4">
-                        {QR_PATTERN.map((val, i) => (
-                          <div
-                            key={i}
-                            className={`w-2 h-2 ${val ? "bg-gray-800" : "bg-white"}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Email
+                </label>
+                <input
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  type="email"
+                  placeholder="you@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
 
-                    <p className="text-center text-xs text-gray-500">
-                      Scan to connect
-                    </p>
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <input
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
 
-                  {/* Card Footer - Action Icons */}
-                  <div className="flex justify-around">
-                    <div className="w-10 h-10 bg-white/20 rounded-full backdrop-blur-sm"></div>
-                    <div className="w-10 h-10 bg-white/20 rounded-full backdrop-blur-sm"></div>
-                    <div className="w-10 h-10 bg-white/20 rounded-full backdrop-blur-sm"></div>
-                  </div>
+              {err && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                  {err}
                 </div>
+              )}
+              {msg && (
+                <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700">
+                  {msg}
+                </div>
+              )}
 
-                {/* Floating accent element */}
-                <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-blue-400 rounded-full blur-2xl opacity-50"></div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <button
+                  onClick={signUp}
+                  disabled={disabled}
+                  className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "..." : "Sign up"}
+                </button>
+
+                <button
+                  onClick={logIn}
+                  disabled={disabled}
+                  className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-800 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "..." : "Log in"}
+                </button>
+
+                <button
+                  onClick={logOut}
+                  disabled={loading}
+                  className="rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-800 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "..." : "Log out"}
+                </button>
               </div>
             </div>
           </div>
+
+          <p className="text-xs text-gray-500 mt-4 text-center">
+            Tip: If “Confirm email” is ON in Supabase, check your inbox after
+            signing up.
+          </p>
         </div>
-      </section>
+      </div>
     </main>
   );
 }
