@@ -10,10 +10,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.94.1",
     "next": "^14.2.30",
     "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "stripe": "^20.3.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
