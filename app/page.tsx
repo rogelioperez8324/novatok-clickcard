@@ -1,15 +1,16 @@
 import Link from "next/link";
+
 // Deterministic QR code pattern to avoid flickering on re-renders
 const QR_PATTERN = [
-  1,0,1,1,0,1,0,1,
-  0,1,0,0,1,0,1,0,
-  1,0,1,0,1,1,0,1,
-  1,1,0,1,0,0,1,0,
-  0,1,1,0,1,1,0,1,
-  1,0,0,1,0,1,1,0,
-  0,1,1,0,1,0,0,1,
-  1,0,1,1,0,1,1,0,
-]
+  1, 0, 1, 1, 0, 1, 0, 1,
+  0, 1, 0, 0, 1, 0, 1, 0,
+  1, 0, 1, 0, 1, 1, 0, 1,
+  1, 1, 0, 1, 0, 0, 1, 0,
+  0, 1, 1, 0, 1, 1, 0, 1,
+  1, 0, 0, 1, 0, 1, 1, 0,
+  0, 1, 1, 0, 1, 0, 0, 1,
+  1, 0, 1, 1, 0, 1, 1, 0,
+];
 
 export default function Home() {
   return (
@@ -22,27 +23,34 @@ export default function Home() {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
               Your Digital Card, Simplified
             </h1>
+
             <p className="text-lg md:text-xl text-gray-600">
-              Dynamic QR codes and mobile-first digital card pages for payments, contacts, and links.
+              Dynamic QR codes and mobile-first digital card pages for payments,
+              contacts, and links.
             </p>
+
             <p className="text-base md:text-lg text-gray-500">
               Share your information instantly. No app required. Works anywhere.
             </p>
+
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              {/* ✅ Changed: Get Started -> /auth */}
               <Link
-                href="/c/demo"
-                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                href="/auth"
+                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-center"
                 aria-label="Get started with Novatok ClickCard"
               >
                 Get Started
               </Link>
-              <button 
-                type="button" 
-                className="px-8 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:border-gray-400 transition-colors"
+
+              {/* ✅ Changed: Learn More -> /c/demo */}
+              <Link
+                href="/c/demo"
+                className="px-8 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:border-gray-400 transition-colors text-center"
                 aria-label="Learn more about Novatok ClickCard"
               >
                 Learn More
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -68,13 +76,12 @@ export default function Home() {
                         {QR_PATTERN.map((val, i) => (
                           <div
                             key={i}
-                            className={`w-2 h-2 ${
-                              val ? 'bg-gray-800' : 'bg-white'
-                            }`}
-                          ></div>
+                            className={`w-2 h-2 ${val ? "bg-gray-800" : "bg-white"}`}
+                          />
                         ))}
                       </div>
                     </div>
+
                     <p className="text-center text-xs text-gray-500">
                       Scan to connect
                     </p>
@@ -96,5 +103,5 @@ export default function Home() {
         </div>
       </section>
     </main>
-  )
+  );
 }
