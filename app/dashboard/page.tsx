@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Card = {
   id: string;
@@ -19,6 +20,7 @@ export default function DashboardPage() {
 
   const [user, setUser] = useState<any>(null);
   const [cards, setCards] = useState<Card[]>([]);
+  const [plan, setPlan] = useState<string>("free");
   const [loading, setLoading] = useState(true);
 
   // Form state
@@ -33,16 +35,34 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadSession = async () => {
       const { data } = await supabase.auth.getUser();
-
       if (!data.user) {
         router.push("/login");
         return;
       }
-
       setUser(data.user);
+
+      // Fetch plan from user profile or subscriptions table
+      // Try user profile first
+      let userPlan = "free";
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", data.user.id)
+        .single();
+      if (profile && profile.plan) {
+        userPlan = profile.plan;
+      } else {
+        // fallback: check subscriptions table
+        const { data: sub } = await supabase
+          .from("subscriptions")
+          .select("plan")
+          .eq("user_id", data.user.id)
+          .single();
+        if (sub && sub.plan) userPlan = sub.plan;
+      }
+      setPlan(userPlan);
       setLoading(false);
     };
-
     loadSession();
   }, [router]);
 
@@ -62,15 +82,26 @@ export default function DashboardPage() {
     if (user) fetchCards();
   }, [user]);
 
+  // Card creation limits by plan
+  const planLimits: Record<string, number | null> = {
+    free: 1,
+    pro: 5,
+    business: null, // unlimited
+  };
+
   // ✅ Create new card
   const createCard = async () => {
     const cleanSlug = slug.trim().toLowerCase();
-
     if (!cleanSlug) {
       alert("Slug is required");
       return;
     }
-
+    // Enforce card creation limit
+    const limit = planLimits[plan] ?? 1;
+    if (limit !== null && cards.length >= limit) {
+      alert(`Your plan (${plan}) allows up to ${limit} card${limit > 1 ? "s" : ""}. Upgrade to create more.`);
+      return;
+    }
     const { error } = await supabase.from("cards").insert([
       {
         slug: cleanSlug,
@@ -82,12 +113,10 @@ export default function DashboardPage() {
         user_id: user.id,
       },
     ]);
-
     if (error) {
       alert("Error: " + error.message);
       return;
     }
-
     // Reset form
     setSlug("");
     setDisplayName("");
@@ -95,7 +124,6 @@ export default function DashboardPage() {
     setAvatarUrl("");
     setEmail("");
     setPhone("");
-
     fetchCards();
   };
 
@@ -125,57 +153,73 @@ export default function DashboardPage() {
       {/* Create Card Form */}
       <div className="border rounded-lg p-4 mb-8">
         <h2 className="text-xl font-semibold mb-3">Create New Card</h2>
-
-        <input
-          placeholder="Slug (ex: jose)"
-          value={slug}
-          onChange={(e) => setSlug(e.target.value)}
-          className="w-full border p-2 rounded mb-2"
-        />
-
-        <input
-          placeholder="Display Name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          className="w-full border p-2 rounded mb-2"
-        />
-
-        <input
-          placeholder="Bio"
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          className="w-full border p-2 rounded mb-2"
-        />
-
-        <input
-          placeholder="Avatar URL"
-          value={avatarUrl}
-          onChange={(e) => setAvatarUrl(e.target.value)}
-          className="w-full border p-2 rounded mb-2"
-        />
-
-        <input
-          type="email"
-          placeholder="Email (optional)"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border p-2 rounded mb-2"
-        />
-
-        <input
-          type="tel"
-          placeholder="Phone (optional)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full border p-2 rounded mb-3"
-        />
-
-        <button
-          onClick={createCard}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-        >
-          Create Card
-        </button>
+        {(() => {
+          const limit = planLimits[plan] ?? 1;
+          const atLimit = limit !== null && cards.length >= limit;
+          if (atLimit) {
+            return (
+              <div className="mb-4">
+                <p className="text-red-600 font-semibold mb-2">
+                  You have reached the card limit for your plan ({plan}).
+                </p>
+                <Link
+                  href="/pricing"
+                  className="inline-block bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 font-semibold"
+                >
+                  Upgrade Plan
+                </Link>
+              </div>
+            );
+          }
+          return (
+            <>
+              <input
+                placeholder="Slug (ex: jose)"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                className="w-full border p-2 rounded mb-2"
+              />
+              <input
+                placeholder="Display Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full border p-2 rounded mb-2"
+              />
+              <input
+                placeholder="Bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="w-full border p-2 rounded mb-2"
+              />
+              <input
+                placeholder="Avatar URL"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                className="w-full border p-2 rounded mb-2"
+              />
+              <input
+                type="email"
+                placeholder="Email (optional)"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border p-2 rounded mb-2"
+              />
+              <input
+                type="tel"
+                placeholder="Phone (optional)"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full border p-2 rounded mb-3"
+              />
+              <button
+                onClick={createCard}
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+              >
+                Create Card
+              </button>
+            </>
+          );
+        })()}
       </div>
 
       {/* Cards List */}
