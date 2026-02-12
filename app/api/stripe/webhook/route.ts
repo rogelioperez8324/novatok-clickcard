@@ -8,30 +8,16 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover",
 });
 
-function validateSupabaseUrl(url: string | undefined): string {
-  if (!url) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL env variable.");
-  }
-  if (!/^https?:\/\//.test(url)) {
-    throw new Error("Invalid NEXT_PUBLIC_SUPABASE_URL: Must be a valid HTTP or HTTPS URL.");
-  }
-  return url;
-}
-
-function validateServiceRoleKey(key: string | undefined): string {
-  if (!key) {
-    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY env variable.");
-  }
-  return key;
-}
-
 function getSupabaseAdmin() {
-  const url = validateSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const key = validateServiceRoleKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+  // ✅ Don't crash the build. Only fail when webhook is called.
+  if (!/^https?:\/\//.test(url)) return null;
+  if (!key) return null;
+
   return createClient(url, key);
 }
-
-const supabaseAdmin = getSupabaseAdmin();
 
 function toIsoFromUnix(unixSeconds?: number | null) {
   if (!unixSeconds) return null;
@@ -39,19 +25,29 @@ function toIsoFromUnix(unixSeconds?: number | null) {
 }
 
 export async function POST(req: Request) {
+  // ✅ Validate Supabase only at request-time
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!supabaseAdmin) {
+    return new Response(
+      "Missing/invalid Supabase env vars. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+      { status: 500 }
+    );
+  }
+
   const sig = (await headers()).get("stripe-signature");
   if (!sig) return new Response("Missing stripe-signature", { status: 400 });
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    return new Response("Missing STRIPE_WEBHOOK_SECRET", { status: 500 });
+  }
 
   const body = await req.text();
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err: any) {
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
   }
@@ -69,10 +65,9 @@ export async function POST(req: Request) {
           : null;
 
       if (userId && customerId && subscriptionId) {
-        // Retrieve subscription (Stripe SDK typing varies by version)
         const sub = await stripe.subscriptions.retrieve(subscriptionId);
 
-        await supabaseAdmin.from("subscriptions").upsert(
+        const { error } = await supabaseAdmin.from("subscriptions").upsert(
           {
             user_id: userId,
             stripe_customer_id: customerId,
@@ -85,6 +80,12 @@ export async function POST(req: Request) {
           },
           { onConflict: "user_id" }
         );
+
+        if (error) {
+          return new Response(`Supabase Error: ${error.message}`, {
+            status: 500,
+          });
+        }
       }
     }
 
